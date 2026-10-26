@@ -1,0 +1,50 @@
+Qual é a função do ambiente de Desenvolvimento (DEV) no fluxo de projetos SAP?,Servir como ambiente exclusivo para consultores realizarem customizações (IMG) e desenvolvedores criarem programas (ABAP).
+O que caracteriza a abordagem Best Practices no SAP Activate?,A utilização de processos pré-configurados e padronizados pela SAP para acelerar a implantação e diminuir desenvolvimentos customizados.
+O que significa a sigla SAP no contexto de sistemas de informação?,"Sistemas, Aplicações e Produtos em Processamento de Dados (do alemão: Systeme, Anwendungen und Produkte in der Datenverarbeitung)."
+Qual é o efeito da instrução /i digitada no campo de comando do SAP GUI?,Encerra e fecha a janela/sessão atual do SAP GUI.
+O que é uma Request de Customização (Transport Request) no SAP?,É um pacote eletrônico que grava alterações de parametrização realizadas em DEV para transportá-las aos ambientes de QAS e PRD.
+Quais são as principais rotinas gerenciadas no módulo de Tesouraria (Cash Management / TR) do SAP FI?,"Gestão de contas bancárias, conciliação bancária automática (importação de extratos) e acompanhamento do fluxo financeiro."
+Qual é o principal requisito de infraestrutura que diferencia o SAP S/4HANA do SAP ECC?,"O S/4HANA opera exclusivamente sobre o banco de dados in-memory SAP HANA, enquanto o ECC funciona com bancos de dados relacionais de terceiros."
+Para que serve o campo de comando localizado no canto superior esquerdo do SAP GUI?,"Para a digitação direta do código da transação (T-Code), permitindo navegar entre telas sem utilizar os menus estruturados."
+Qual transação do SAP acessa o Guia de Implementação (IMG) para parametrização do sistema?,Transação SPRO.
+Qual é o efeito do comando /o inserido antes de um código de transação no SAP GUI?,Mantém a janela atual aberta e carrega a nova transação em uma nova sessão ou instância do SAP GUI.
+"Quantas sessões (janelas) simultâneas do SAP GUI um usuário pode manter abertas, no máximo?",Até 6 janelas simultâneas.
+Qual é a função do ambiente de Qualidade/Homologação (QAS) no fluxo de projetos SAP?,"Executar testes funcionais integrados, validações de processo e testes de homologação com os usuários (UAT)."
+Qual é a função do submódulo FI-AA (Asset Accounting) no SAP?,"Controlar o patrimônio imobilizado (bens ativos fixos), registrando aquisições, baixas, depreciações e transferências."
+Quais são as quatro fases sequenciais da metodologia SAP Activate?,"Prepare (Preparar), Explore (Explorar), Realize (Realizar) e Deploy (Implantar)."
+"Ao posicionar o cursor em um campo no SAP GUI, qual é a função da tecla F4?",Exibe a lista de opções com os valores válidos e pesquisáveis (Matchcode) para o preenchimento do campo.
+O que é a fase de Operação Assistida (Hypercare) após o Go-Live?,O período de suporte intensivo fornecido pela equipe de consultoria aos usuários para estabilização dos processos no sistema.
+Qual é a função do submódulo FI-GL (General Ledger) no SAP?,Registrar as transações e lançamentos contábeis centrais da empresa no Razão Geral.
+O que é o SAP Fiori no ecossistema de software da SAP?,É a interface gráfica moderna e responsiva baseada em ambiente web e em aplicativos (apps) funcionais.
+"Ao posicionar o cursor em um campo no SAP GUI, qual é a função da tecla F1?","Exibe a documentação de ajuda (Help) explicativa sobre o conceito, finalidade e utilização do campo."
+Qual é a principal característica operacional de um ERP integrado como o SAP?,"A integração nativa dos dados em tempo real (Real Time) entre os diversos módulos empresariais, sem necessidade de interfaces manuais."
+Qual é a função do submódulo FI-AR (Accounts Receivable) no SAP?,"Gerenciar os direitos de crédito, emissão de cobranças e faturamentos a receber de clientes."
+Qual é o efeito da instrução /nEX no campo de comando do SAP GUI?,Fecha imediatamente todas as janelas ativas do SAP GUI sem solicitar confirmação ou salvar dados.
+O que significa a sigla IMG no contexto de parametrização SAP?,Implementation Guide (Guia de Implementação).
+O que é um Mandante (Client) na arquitetura de banco de dados do SAP?,"É uma unidade organizacional e jurídica auto-contida, com registros, tabelas e dados mestre totalmente isolados de outros mandantes no mesmo servidor."
+O que caracteriza o ambiente de Produção (PRD) em uma empresa que utiliza SAP?,É o ambiente definitivo onde ocorrem e são gravadas as operações reais diárias do negócio da empresa.
+Qual é a função do submódulo FI-AP (Accounts Payable) no SAP?,"Gerenciar os compromissos operacionais, faturas e pagamentos devidos aos fornecedores."
+De que forma o saldo final da Demonstração do Resultado do Exercício (DRE) conecta-se ao Balanço Patrimonial?,"O resultado líquido (lucro ou prejuízo) é incorporado ao Patrimônio Líquido no Balanço Patrimonial, garantindo o equilíbrio contábil."
+O que representa o Patrimônio Líquido na estrutura do Balanço Patrimonial?,"Os recursos próprios da empresa, representando a diferença positiva entre o Ativo e o Passivo Exigível."
+O que define as obrigações classificadas no Passivo Exigível a Longo Prazo?,São dívidas e obrigações com vencimento previsto para após o término do exercício social seguinte.
+O que caracteriza os bens e direitos classificados no Ativo Circulante?,São recursos disponíveis ou conversíveis em dinheiro no curto prazo (até o encerramento do exercício social seguinte).
+Como a contabilidade define o conceito de Passivo no Balanço Patrimonial?,Como o conjunto de deveres e obrigações assumidas pela entidade perante terceiros.
+Qual é o prazo estipulado pela SAP para encerramento do suporte padrão ao ERP ECC e migração para o S/4HANA?,Até o ano de 2027 (com possibilidade de extensão de suporte até 2030).
+Como a contabilidade define o conceito de Ativo no Balanço Patrimonial?,Como o conjunto de bens e direitos pertencentes à entidade.
+Qual é a utilidade do ícone do binóculo na barra de ferramentas do SAP GUI?,"Pesquisar termos, descrições ou valores específicos dentro de tabelas, relatórios ou listas exibidas na tela."
+Qual é a diferença de permanência temporal entre saldos de Contas Patrimoniais e de Contas de Resultado?,Os saldos das contas patrimoniais acumulam-se continuamente entre os anos; os saldos das contas de resultado são zerados ao fim do exercício para apuração do resultado do período.
+Qual é a responsabilidade técnica do consultor BASIS em um ambiente SAP?,"Administrar a infraestrutura, bancos de dados, servidores, permissões de usuários e o transporte de requests entre ambientes."
+Qual é a responsabilidade técnica do desenvolvedor ABAP em um ambiente SAP?,"Desenvolver programas, relatórios customizados, interfaces e melhorias na linguagem de programação nativa do SAP."
+Qual é a metodologia oficial atual adotada pela SAP para gerenciamento de projetos no S/4HANA?,Metodologia SAP Activate.
+"Na metodologia de projetos ASAP, qual é o papel do documento Business Blueprint?",Mapear em detalhes todos os processos de negócio da empresa e formalizar como eles serão atendidos dentro do SAP.
+O que indica a denominação programa Z ou transação Z no ecossistema SAP?,"Indica que o programa, tabela ou transação foi customizado para a empresa, não fazendo parte do padrão nativo (Standard) da SAP."
+Qual é o efeito do comando /n inserido antes de um código de transação no SAP GUI?,Cancela a transação atual e abre a nova transação na mesma janela ativa.
+O que é um Sprint no contexto de projetos SAP gerenciados por metodologias ágeis?,Um ciclo de desenvolvimento de duração fixa (normalmente de 2 a 4 semanas) focado em entregar um conjunto delimitado de funcionalidades parametrizadas.
+O que compreende o conceito de Localização Brasil no módulo FI e Fiscal do SAP?,"As parametrizações e regras de negócio específicas criadas para atender à legislação tributária brasileira (retenções, impostos diretos/indiretos, SPED e NF-e)."
+Qual é o principal papel de um Usuário Chave (Key User) durante um projeto de implantação do SAP?,"Ajudar no mapeamento de processos, homologar parametrizações nos testes integrados e atuar como multiplicador no treinamento dos usuários finais."
+Por que é proibido parametrizar o sistema diretamente no ambiente de Produção (PRD)?,"Para evitar riscos de inconsistências nos dados operacionais, interrupções no negócio e descumprimento de regras de governança."
+O que é o Exercício Social no contexto regulatório e contábil brasileiro?,"Período de 12 meses (que no Brasil coincide com o ano civil, de janeiro a dezembro) ao final do qual a empresa apura suas demonstrações financeiras."
+Qual é a diferença fundamental entre o SAP Menu e a transação SPRO (IMG)?,O SAP Menu atende às rotinas transacionais operacionais dos usuários finais; a SPRO (IMG) é o ambiente exclusivo de parametrização e customização utilizado por consultores.
+Qual é o objetivo dos Workshops A e B na fase Explore da metodologia SAP Activate?,Demonstrar os processos padrão pré-configurados aos usuários para identificar lacunas funcionais (Gaps) a serem ajustadas.
+Qual é a função do submódulo FI-TV (Travel Management) no SAP?,"Administrar solicitações, adiantamentos e liquidações de relatórios de despesas de viagens corporativas."
+O que representa o marco de Go-Live em uma implantação do SAP?,A virada de chave em que o novo sistema entra oficialmente em operação produtiva no ambiente PRD.

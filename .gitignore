@@ -1,0 +1,11 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+supabase.local.properties
+*.jks
+*.keystore
+.idea/
+*.iml
+revisa-web.tar.gz
+.site-git-metadata/

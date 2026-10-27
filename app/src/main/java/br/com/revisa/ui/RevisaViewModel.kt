@@ -16,6 +16,9 @@ import br.com.revisa.data.Flashcard
 import br.com.revisa.data.Library
 import br.com.revisa.data.Profile
 import br.com.revisa.data.RepositoryFactory
+import br.com.revisa.data.SimulationTemplate
+import br.com.revisa.data.SimulationPack
+import br.com.revisa.data.SimulationHistory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -45,6 +48,8 @@ data class StudyState(
     val doubts: Int = 0,
     val wrong: Int = 0,
     val nextReviewAt: Long? = null,
+    val simulationAttemptId: String? = null,
+    val percentage: Int? = null,
 ) {
     val complete get() = index >= cards.size
     val current get() = cards.getOrNull(index)
@@ -71,13 +76,20 @@ class RevisaViewModel(application: Application) : AndroidViewModel(application) 
     var communityPath by mutableStateOf<List<String>>(emptyList()); private set
     var editor by mutableStateOf<EditorState?>(null); private set
     var study by mutableStateOf<StudyState?>(null); private set
+    var simulations by mutableStateOf<List<SimulationTemplate>>(emptyList()); private set
+    var simulationHistory by mutableStateOf<List<SimulationHistory>>(emptyList()); private set
+    var simulationSaveRevision by mutableStateOf(0); private set
 
     init {
         viewModelScope.launch {
             try {
                 authenticated = repository.restore()
                 profile = repository.profile
-                if (authenticated) library = repository.library()
+                if (authenticated) {
+                    library = repository.library()
+                    simulations = repository.simulations()
+                    simulationHistory = repository.simulationHistory()
+                }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 error = readable(e)
@@ -111,6 +123,8 @@ class RevisaViewModel(application: Application) : AndroidViewModel(application) 
         authenticated = true
         profile = repository.profile
         library = repository.library()
+        simulations = repository.simulations()
+        simulationHistory = repository.simulationHistory()
     }
     fun register(email: String, password: String, username: String) = task {
         require(email.isNotBlank() && password.length >= 8) {
@@ -124,6 +138,8 @@ class RevisaViewModel(application: Application) : AndroidViewModel(application) 
             authenticated = true
             profile = repository.profile
             library = repository.library()
+            simulations = repository.simulations()
+            simulationHistory = repository.simulationHistory()
         } else notice = "Conta criada! Confirme seu e-mail e depois entre com sua senha."
     }
     fun enterDemo() = task {
@@ -133,6 +149,8 @@ class RevisaViewModel(application: Application) : AndroidViewModel(application) 
         authenticated = true
         profile = repository.profile
         library = repository.library()
+        simulations = repository.simulations()
+        simulationHistory = repository.simulationHistory()
         notice = "Demonstração local: seus testes ficam salvos neste aparelho."
     }
     fun logout() = task {
@@ -142,6 +160,8 @@ class RevisaViewModel(application: Application) : AndroidViewModel(application) 
         profile = null
         demo = false
         library = Library()
+        simulations = emptyList()
+        simulationHistory = emptyList()
         tab = 0
         path = emptyList()
         communityUser = null
@@ -154,7 +174,12 @@ class RevisaViewModel(application: Application) : AndroidViewModel(application) 
         study = null
         notice = null
     }
-    fun refresh() = task { library = repository.library(); profile = repository.profile }
+    fun refresh() = task {
+        library = repository.library()
+        simulations = repository.simulations()
+        simulationHistory = repository.simulationHistory()
+        profile = repository.profile
+    }
     fun selectTab(value: Int) {
         if (busy) return
         tab = value
@@ -282,6 +307,31 @@ class RevisaViewModel(application: Application) : AndroidViewModel(application) 
         require(queue.isNotEmpty()) { "Nenhum cartão com pontuação positiva para revisar." }
         study = StudyState("Revisão dos cartões", queue)
     }
+    fun saveSimulation(id: String?, title: String, quantities: Map<String, Int>) = task {
+        val cleanTitle = title.trim()
+        require(cleanTitle.length in 1..120) { "Informe um nome de até 120 caracteres." }
+        val chosen = quantities.filterValues { it > 0 }.map { SimulationPack(it.key, it.value) }
+        require(chosen.isNotEmpty()) { "Escolha ao menos um conjunto para o simulado." }
+        require(chosen.size <= 100 && chosen.sumOf { it.count } <= 5000) { "O simulado aceita até 100 conjuntos e 5.000 cartões." }
+        val available = library.decks.distinctBy { it.id }.associateBy { it.id }
+        chosen.forEach { pack ->
+            val deck = available[pack.deckId] ?: throw IllegalArgumentException("Um conjunto saiu da sua biblioteca.")
+            require(pack.count <= deck.cardCount) { "${deck.title} tem apenas ${deck.cardCount} cartões." }
+        }
+        repository.saveSimulation(SimulationTemplate(id, cleanTitle, chosen))
+        simulations = repository.simulations()
+        simulationSaveRevision += 1
+        notice = "Modelo de simulado salvo."
+    }
+    fun deleteSimulation(id: String) = task {
+        repository.deleteSimulation(id)
+        simulations = repository.simulations()
+        notice = "Modelo removido. As notas anteriores permanecem no histórico."
+    }
+    fun startSimulation(id: String) = task {
+        val attempt = repository.startSimulation(id)
+        study = StudyState(attempt.title, attempt.cards, simulationAttemptId = attempt.id)
+    }
     fun reveal() { study = study?.copy(revealed = true) }
     fun grade(grade: Grade) = task {
         val current = study ?: return@task
@@ -289,15 +339,22 @@ class RevisaViewModel(application: Application) : AndroidViewModel(application) 
         require(current.revealed) { "Veja a resposta antes de avaliar." }
         require(current.pendingGrade == null || current.pendingGrade == grade) { "Tente novamente a avaliação que ficou pendente." }
         study = current.copy(pendingGrade = grade)
-        repository.grade(card.id, grade, current.eventId)
+        val result = if (current.simulationAttemptId == null) {
+            repository.grade(card.id, grade, current.eventId)
+            null
+        } else repository.gradeSimulation(current.simulationAttemptId, card.id, grade, current.eventId)
         study = current.copy(
             index = current.index + 1, revealed = false,
             eventId = UUID.randomUUID().toString(), pendingGrade = null,
             correct = current.correct + if (grade == Grade.CORRECT) 1 else 0,
             doubts = current.doubts + if (grade == Grade.DOUBT) 1 else 0,
-            wrong = current.wrong + if (grade == Grade.WRONG) 1 else 0
+            wrong = current.wrong + if (grade == Grade.WRONG) 1 else 0,
+            percentage = result?.percentage
         )
-        if (study?.complete == true) library = repository.library()
+        if (study?.complete == true) {
+            library = repository.library()
+            if (current.simulationAttemptId != null) simulationHistory = repository.simulationHistory()
+        }
     }
     fun closeStudy() = task {
         study = null

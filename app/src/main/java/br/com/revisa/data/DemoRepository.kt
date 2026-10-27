@@ -29,6 +29,10 @@ class DemoRepository(context: Context) : RevisaRepository {
     private val schedules = linkedMapOf<String, ReviewSchedule>()
     private val events = linkedMapOf<String, GradeEvent>()
     private val copiedSources = linkedMapOf<String, String>()
+    private val simulationTemplates = linkedMapOf<String, SimulationTemplate>()
+    private val simulationResults = mutableListOf<SimulationHistory>()
+    private data class DemoAttempt(val title: String, val cardIds: List<String>, val answers: MutableMap<String, Pair<Grade, String>> = mutableMapOf())
+    private val simulationAttempts = mutableMapOf<String, DemoAttempt>()
 
     override val isDemo = true
     override val configured = true
@@ -116,6 +120,59 @@ class DemoRepository(context: Context) : RevisaRepository {
             events[eventId] = GradeEvent(cardId, grade, score)
             score
         }
+    }
+
+    override suspend fun simulations(): List<SimulationTemplate> = store {
+        simulationTemplates.values.toList()
+    }
+
+    override suspend fun saveSimulation(template: SimulationTemplate): Unit = store(write = true) {
+        val id = template.id ?: newId()
+        require(template.id == null || id in simulationTemplates) { "Simulado não encontrado." }
+        simulationTemplates[id] = template.copy(id = id)
+    }
+
+    override suspend fun deleteSimulation(id: String): Unit = store(write = true) {
+        require(simulationTemplates.remove(id) != null) { "Simulado não encontrado." }
+    }
+
+    override suspend fun startSimulation(id: String): SimulationAttempt = store {
+        val template = simulationTemplates[id] ?: error("Simulado não encontrado.")
+        val selected = template.packs.flatMap { pack ->
+            ownedDeck(pack.deckId)
+            val available = flashcards.values.filter { it.deckId == pack.deckId }
+            require(pack.count in 1..available.size) { "Um conjunto não possui a quantidade configurada de cartões." }
+            available.shuffled().take(pack.count)
+        }.shuffled()
+        val attemptId = newId()
+        simulationAttempts[attemptId] = DemoAttempt(template.title, selected.map { it.id })
+        SimulationAttempt(attemptId, template.title, selected)
+    }
+
+    override suspend fun gradeSimulation(attemptId: String, cardId: String, grade: Grade, eventId: String): SimulationResult = store(write = true) {
+        val attempt = simulationAttempts[attemptId] ?: error("Tentativa não encontrada.")
+        require(cardId in attempt.cardIds) { "Cartão fora da tentativa." }
+        val prior = attempt.answers[cardId]
+        if (prior != null) {
+            require(prior.first == grade && prior.second == eventId) { "Cartão já avaliado nesta tentativa." }
+        } else {
+            val card = flashcards[cardId] ?: error("Cartão não encontrado.")
+            val nextScore = ReviewRules.nextScore(card.score, grade)
+            flashcards[cardId] = card.copy(score = nextScore)
+            events[eventId] = GradeEvent(cardId, grade, nextScore)
+            attempt.answers[cardId] = grade to eventId
+        }
+        val complete = attempt.answers.size == attempt.cardIds.size
+        val percentage = if (complete) kotlin.math.round((attempt.answers.values.count { it.first == Grade.CORRECT } * 100.0) /
+            attempt.cardIds.size).toInt() else null
+        if (complete && simulationResults.none { it.id == attemptId }) {
+            simulationResults.add(SimulationHistory(attemptId, attempt.title, percentage!!, java.time.Instant.now().toString()))
+        }
+        SimulationResult(complete, percentage)
+    }
+
+    override suspend fun simulationHistory(): List<SimulationHistory> = store {
+        simulationResults.sortedByDescending { it.completedAt }
     }
 
     override suspend fun saveDeck(draft: DeckDraft): String = store(write = true) {
@@ -266,6 +323,9 @@ class DemoRepository(context: Context) : RevisaRepository {
         schedules.clear()
         events.clear()
         copiedSources.clear()
+        simulationTemplates.clear()
+        simulationResults.clear()
+        simulationAttempts.clear()
         val owner = checkNotNull(demoProfile).id
         val coId = newId()
         val fundamentalsId = newId()
@@ -317,6 +377,24 @@ class DemoRepository(context: Context) : RevisaRepository {
         put("copies", jsonArray(copiedSources.entries) {
             JSONObject().put("sourceId", it.key).put("deckId", it.value)
         })
+        put("simulations", jsonArray(simulationTemplates.values) { simulation ->
+            JSONObject().put("id", simulation.id).put("title", simulation.title)
+                .put("config", jsonArray(simulation.packs) { pack ->
+                    JSONObject().put("deck_id", pack.deckId).put("count", pack.count)
+                })
+        })
+        put("simulationResults", jsonArray(simulationResults) {
+            JSONObject().put("id", it.id).put("title", it.title)
+                .put("percentage", it.percentage).put("completedAt", it.completedAt)
+        })
+        put("simulationAttempts", jsonArray(simulationAttempts.entries) { entry ->
+            JSONObject().put("id", entry.key).put("title", entry.value.title)
+                .put("cardIds", JSONArray(entry.value.cardIds))
+                .put("answers", jsonArray(entry.value.answers.entries) { answer ->
+                    JSONObject().put("cardId", answer.key).put("grade", answer.value.first.name)
+                        .put("eventId", answer.value.second)
+                })
+        })
     }
 
     private fun readState(json: JSONObject) {
@@ -328,6 +406,9 @@ class DemoRepository(context: Context) : RevisaRepository {
         schedules.clear()
         events.clear()
         copiedSources.clear()
+        simulationTemplates.clear()
+        simulationResults.clear()
+        simulationAttempts.clear()
         json.getJSONArray("decks").forEachObject {
             val deck = Deck(
                 it.getString("id"), it.getString("ownerId"), it.getString("exam"), it.getString("subject"),
@@ -353,6 +434,27 @@ class DemoRepository(context: Context) : RevisaRepository {
         }
         json.getJSONArray("copies").forEachObject {
             copiedSources[it.getString("sourceId")] = it.getString("deckId")
+        }
+        json.optJSONArray("simulations")?.forEachObject { row ->
+            val packs = mutableListOf<SimulationPack>()
+            row.getJSONArray("config").forEachObject { packs.add(SimulationPack(it.getString("deck_id"), it.getInt("count"))) }
+            val template = SimulationTemplate(row.getString("id"), row.getString("title"), packs)
+            simulationTemplates[template.id!!] = template
+        }
+        json.optJSONArray("simulationResults")?.forEachObject {
+            simulationResults.add(SimulationHistory(it.getString("id"), it.getString("title"),
+                it.getInt("percentage"), it.getString("completedAt")))
+        }
+        json.optJSONArray("simulationAttempts")?.forEachObject { row ->
+            val cardIds = row.getJSONArray("cardIds").let { ids ->
+                (0 until ids.length()).map(ids::getString)
+            }
+            val attempt = DemoAttempt(row.getString("title"), cardIds)
+            row.getJSONArray("answers").forEachObject { answer ->
+                attempt.answers[answer.getString("cardId")] =
+                    Grade.valueOf(answer.getString("grade")) to answer.getString("eventId")
+            }
+            simulationAttempts[row.getString("id")] = attempt
         }
     }
 

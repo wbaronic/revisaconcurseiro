@@ -21,5 +21,6 @@ Para gerar a versão de produção: `npm run build`. Publique a pasta `dist` em 
 - Prévia, limite de 5.000 cartões e 10 MB por arquivo; salvamento atômico pela função existente `save_deck`.
 - Biblioteca compartilhada com Android, prévia dos cartões e visibilidade pública/particular.
 - Busca por nome de usuário, filtros concurso → matéria → assunto e cópia pela função `copy_public_decks`.
+- Modelos de simulados com quantidade de cartões por conjunto, novas tentativas sorteadas, nota em porcentagem e histórico compartilhado com Android.
 
-O cliente usa somente a chave pública. As permissões são aplicadas pelo RLS e pelas funções existentes do banco. A confirmação de e-mail segue a configuração do Supabase Auth. Esta versão não inclui as sessões de revisão.
+O cliente usa somente a chave pública. As permissões são aplicadas pelo RLS e pelas funções existentes do banco. A confirmação de e-mail segue a configuração do Supabase Auth.

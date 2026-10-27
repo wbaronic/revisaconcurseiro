@@ -21,6 +21,11 @@ data class DeckDraft(
     val exam: String, val subject: String, val topic: String, val title: String,
     val isPublic: Boolean, val cards: List<ImportedCard>, val id: String? = null
 )
+data class SimulationPack(val deckId: String, val count: Int)
+data class SimulationTemplate(val id: String?, val title: String, val packs: List<SimulationPack>)
+data class SimulationAttempt(val id: String, val title: String, val cards: List<Flashcard>)
+data class SimulationResult(val complete: Boolean, val percentage: Int?)
+data class SimulationHistory(val id: String, val title: String, val percentage: Int, val completedAt: String)
 
 interface RevisaRepository {
     val isDemo: Boolean
@@ -42,4 +47,10 @@ interface RevisaRepository {
     suspend fun searchUsers(query: String): List<Profile>
     suspend fun publicDecks(ownerId: String): List<Deck>
     suspend fun copyPublic(ownerId: String, exam: String? = null, subject: String? = null, topic: String? = null): Int
+    suspend fun simulations(): List<SimulationTemplate>
+    suspend fun saveSimulation(template: SimulationTemplate)
+    suspend fun deleteSimulation(id: String)
+    suspend fun startSimulation(id: String): SimulationAttempt
+    suspend fun gradeSimulation(attemptId: String, cardId: String, grade: Grade, eventId: String): SimulationResult
+    suspend fun simulationHistory(): List<SimulationHistory>
 }

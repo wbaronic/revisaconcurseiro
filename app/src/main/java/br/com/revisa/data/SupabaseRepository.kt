@@ -217,6 +217,75 @@ class SupabaseRepository(
                 .put("p_topic", topic ?: JSONObject.NULL)))
         }
 
+    override suspend fun simulations(): List<SimulationTemplate> = withContext(Dispatchers.IO) {
+        val owner = accessSession().userId
+        allRows("simulations", mapOf("select" to "id,title,config", "owner_id" to "eq.$owner",
+            "order" to "created_at.desc,id.desc")).map { row ->
+            val config = row.getJSONArray("config")
+            SimulationTemplate(row.getString("id"), row.getString("title"),
+                (0 until config.length()).map { index ->
+                    config.getJSONObject(index).let { SimulationPack(it.getString("deck_id"), it.getInt("count")) }
+                })
+        }
+    }
+
+    override suspend fun saveSimulation(template: SimulationTemplate): Unit = withContext(Dispatchers.IO) {
+        val owner = accessSession().userId
+        val config = JSONArray().apply {
+            template.packs.forEach { put(JSONObject().put("deck_id", it.deckId).put("count", it.count)) }
+        }
+        val body = JSONObject().put("title", template.title).put("config", config)
+        val result = if (template.id == null) {
+            body.put("owner_id", owner)
+            authorized("POST", "rest/v1/simulations", body = body,
+                headers = mapOf("Prefer" to "return=representation"))
+        } else {
+            authorized("PATCH", "rest/v1/simulations",
+                mapOf("id" to "eq.${template.id}", "owner_id" to "eq.$owner"),
+                body, mapOf("Prefer" to "return=representation"))
+        }
+        require(JSONArray(result.body).length() == 1) { "Não foi possível salvar o simulado." }
+    }
+
+    override suspend fun deleteSimulation(id: String): Unit = withContext(Dispatchers.IO) {
+        val owner = accessSession().userId
+        val response = authorized("DELETE", "rest/v1/simulations",
+            mapOf("id" to "eq.$id", "owner_id" to "eq.$owner"),
+            headers = mapOf("Prefer" to "return=representation"))
+        require(JSONArray(response.body).length() == 1) { "Simulado não encontrado." }
+    }
+
+    override suspend fun startSimulation(id: String): SimulationAttempt = withContext(Dispatchers.IO) {
+        val template = simulations().firstOrNull { it.id == id }
+            ?: throw IllegalArgumentException("Simulado não encontrado.")
+        val answer = JSONObject(rpc("start_simulation", JSONObject().put("p_simulation_id", id)))
+        val orderedIds = answer.getJSONArray("card_ids").let { array ->
+            (0 until array.length()).map(array::getString)
+        }
+        val available = template.packs.map { it.deckId }.distinct().flatMap { cards(it) }.associateBy { it.id }
+        val selected = orderedIds.map { available[it] ?: throw IOException("Um cartão do simulado não está disponível.") }
+        SimulationAttempt(answer.getString("attempt_id"), answer.getString("title"), selected)
+    }
+
+    override suspend fun gradeSimulation(attemptId: String, cardId: String, grade: Grade, eventId: String): SimulationResult =
+        withContext(Dispatchers.IO) {
+            val answer = JSONObject(rpc("grade_simulation_card", JSONObject()
+                .put("p_attempt_id", attemptId).put("p_card_id", cardId)
+                .put("p_grade", grade.name.lowercase(Locale.ROOT)).put("p_event_id", eventId)))
+            SimulationResult(answer.getBoolean("complete"),
+                if (answer.isNull("percentage")) null else answer.getInt("percentage"))
+        }
+
+    override suspend fun simulationHistory(): List<SimulationHistory> = withContext(Dispatchers.IO) {
+        val owner = accessSession().userId
+        allRows("simulation_attempts", mapOf("select" to "id,title,percentage,completed_at",
+            "owner_id" to "eq.$owner", "completed_at" to "not.is.null",
+            "order" to "completed_at.desc,id.desc")).map {
+            SimulationHistory(it.getString("id"), it.getString("title"),
+                it.getInt("percentage"), it.getString("completed_at"))
+        }
+    }
+
     private suspend fun loadProfile(id: String): Profile {
         val rows = allRows("profiles", mapOf("select" to "id,username,display_name", "id" to "eq.$id", "order" to "id.asc"))
         return rows.singleOrNull()?.let(::profile)

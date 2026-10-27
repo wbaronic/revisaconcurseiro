@@ -63,6 +63,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -172,10 +173,10 @@ fun RevisaApp(vm: RevisaViewModel) {
             bottomBar = {
                 if (vm.authenticated && session == null && editor == null) {
                     NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
-                        listOf("Hoje", "Biblioteca", "Comunidade").forEachIndexed { index, title ->
+                        listOf("Hoje", "Biblioteca", "Comunidade", "Simulados").forEachIndexed { index, title ->
                             NavigationBarItem(
                                 selected = vm.tab == index, onClick = { vm.selectTab(index) }, enabled = !vm.busy,
-                                icon = { LineIcon(listOf("sun", "cards", "users")[index], if (vm.tab == index) Teal else Muted) },
+                                icon = { LineIcon(listOf("sun", "cards", "users", "layers")[index], if (vm.tab == index) Teal else Muted) },
                                 label = { Text(title) },
                                 colors = NavigationBarItemDefaults.colors(
                                     indicatorColor = Mint, selectedIconColor = Teal, selectedTextColor = Teal,
@@ -199,7 +200,8 @@ fun RevisaApp(vm: RevisaViewModel) {
                             editor != null -> EditorScreen(vm, editor)
                             vm.tab == 0 -> HomeScreen(vm)
                             vm.tab == 1 -> LibraryScreen(vm)
-                            else -> CommunityScreen(vm)
+                            vm.tab == 2 -> CommunityScreen(vm)
+                            else -> SimulationsScreen(vm)
                         }
                     }
                 }
@@ -717,6 +719,115 @@ private fun EditorScreen(vm: RevisaViewModel, editor: EditorState) {
 }
 
 @Composable
+private fun SimulationsScreen(vm: RevisaViewModel) {
+    var editingId by remember { mutableStateOf<String?>(null) }
+    var editing by remember { mutableStateOf(false) }
+    var title by remember { mutableStateOf("") }
+    var submitted by remember { mutableStateOf(false) }
+    val quantities = remember { mutableStateMapOf<String, String>() }
+    val available = vm.library.decks.distinctBy { it.id }.filter { it.cardCount > 0 }
+    LaunchedEffect(vm.simulationSaveRevision) {
+        if (submitted) {
+            editing = false
+            submitted = false
+            editingId = null
+            title = ""
+            quantities.clear()
+        }
+    }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(ScreenPadding),
+        verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text("MODELOS DE ESTUDO", style = MaterialTheme.typography.labelSmall, color = Teal)
+        Text("Seus simulados", style = MaterialTheme.typography.headlineLarge)
+        Text("Escolha quantos cartões entram de cada conjunto. Uma nova tentativa sorteia outros cartões e guarda sua nota.", color = Muted)
+        PrimaryButton("+ Criar simulado", enabled = !vm.busy) {
+            editingId = null
+            title = ""
+            quantities.clear()
+            editing = true
+        }
+        if (editing) {
+            Card(shape = shape, colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(if (editingId == null) "Novo modelo" else "Editar modelo", style = MaterialTheme.typography.titleLarge)
+                    Input("Nome do simulado", title, { title = it }, enabled = !vm.busy)
+                    Text("Cartões por conjunto", style = MaterialTheme.typography.titleMedium)
+                    if (available.isEmpty()) Text("Adicione conjuntos à sua biblioteca para criar um simulado.", color = Muted)
+                    available.forEach { deck ->
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(Modifier.weight(1f)) {
+                                Text(deck.title, fontWeight = FontWeight.SemiBold)
+                                Text("${deck.subject} · ${deck.cardCount} cartões", color = Muted, fontSize = 12.sp)
+                            }
+                            OutlinedTextField(
+                                value = quantities[deck.id].orEmpty(),
+                                onValueChange = { value -> if (value.isEmpty() || value.all(Char::isDigit)) quantities[deck.id] = value },
+                                label = { Text("Qtd.") }, singleLine = true, enabled = !vm.busy,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.width(92.dp)
+                            )
+                        }
+                    }
+                    val total = quantities.values.sumOf { it.toIntOrNull() ?: 0 }
+                    Text("Total: $total cartões", color = Teal, fontWeight = FontWeight.SemiBold)
+                    PrimaryButton("Salvar modelo", enabled = !vm.busy && available.isNotEmpty()) {
+                        val counts = quantities.mapValues { it.value.toIntOrNull() ?: 0 }
+                        val selected = counts.filterValues { it > 0 }
+                        if (selected.isEmpty() || selected.any { (id, count) -> count > (available.find { it.id == id }?.cardCount ?: 0) }) {
+                            vm.showError("Escolha uma quantidade válida de cartões para cada conjunto.")
+                        } else {
+                            submitted = true
+                            vm.saveSimulation(editingId, title, counts)
+                        }
+                    }
+                    TextButton(onClick = { editing = false; submitted = false }, enabled = !vm.busy) { Text("Cancelar") }
+                }
+            }
+        }
+        Text("Modelos salvos", style = MaterialTheme.typography.titleLarge)
+        if (vm.simulations.isEmpty()) Text("Você ainda não criou um simulado.", color = Muted)
+        vm.simulations.forEach { template ->
+            Card(shape = shape, colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text(template.title, style = MaterialTheme.typography.titleMedium)
+                    Text(template.packs.joinToString(" · ") { pack ->
+                        val deck = available.find { it.id == pack.deckId }
+                        "${pack.count} de ${deck?.title ?: "conjunto removido"}"
+                    }, color = Muted, fontSize = 13.sp)
+                    Button(onClick = { vm.startSimulation(checkNotNull(template.id)) }, enabled = !vm.busy) { Text("Estudar") }
+                    Row {
+                        TextButton(onClick = {
+                            editingId = template.id
+                            title = template.title
+                            quantities.clear()
+                            template.packs.forEach { quantities[it.deckId] = it.count.toString() }
+                            editing = true
+                        }, enabled = !vm.busy) { Text("Editar") }
+                        TextButton(onClick = { vm.deleteSimulation(checkNotNull(template.id)) }, enabled = !vm.busy) {
+                            Text("Excluir", color = Coral)
+                        }
+                    }
+                }
+            }
+        }
+        Text("Notas anteriores", style = MaterialTheme.typography.titleLarge)
+        if (vm.simulationHistory.isEmpty()) Text("Conclua um simulado para ver sua nota aqui.", color = Muted)
+        vm.simulationHistory.take(30).forEach { result ->
+            Row(Modifier.fillMaxWidth().clip(shape).background(Color.White).padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(result.title, fontWeight = FontWeight.SemiBold)
+                    Text(result.completedAt.take(10), color = Muted, fontSize = 12.sp)
+                }
+                Text("${result.percentage}%", style = MaterialTheme.typography.titleLarge, color = Teal)
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+    }
+}
+
+@Composable
 private fun StudyScreen(vm: RevisaViewModel, session: StudyState) {
     if (session.complete) {
         Column(
@@ -728,6 +839,11 @@ private fun StudyScreen(vm: RevisaViewModel, session: StudyState) {
             Pill("UM PASSO À FRENTE", Mint, Teal)
             Text("Sessão concluída.", style = MaterialTheme.typography.headlineLarge)
             Text("${session.cards.size} cartões estudados em ${session.title}.", color = Muted, style = MaterialTheme.typography.bodyLarge)
+            if (session.simulationAttemptId != null) {
+                Text("Nota: ${session.percentage ?: ((session.correct * 100.0 / session.cards.size).toInt())}%",
+                    style = MaterialTheme.typography.headlineLarge, color = Teal)
+                Text("A nota foi salva no histórico do simulado.", color = Muted)
+            }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ResultStat("${session.correct}", "Acertos", Teal, Mint)
                 ResultStat("${session.doubts}", "Dúvidas", Amber, PaleAmber)

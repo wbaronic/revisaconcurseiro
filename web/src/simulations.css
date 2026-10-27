@@ -1,0 +1,15 @@
+.progress{height:7px;background:#dce7df;border-radius:7px;margin:18px 0 25px;overflow:hidden}
+.progress span{display:block;height:100%;background:#147d6b}
+.study-card{display:grid;position:relative;width:100%;min-height:240px;padding:26px;border-radius:24px;text-align:left;color:#173b40;background:#fff;border:1px solid #dce5dc;transform-style:preserve-3d;transition:transform .45s;overflow-wrap:anywhere;box-shadow:0 12px 28px #173b4012}
+.study-card:hover{filter:none}
+.study-card.flipped{transform:rotateY(180deg)}
+.study-side{grid-area:1/1;display:flex;flex-direction:column;gap:25px;backface-visibility:hidden}
+.study-side small{color:#147d6b;font-size:12px;letter-spacing:1px}
+.study-side strong{font-size:clamp(21px,3vw,29px);font-weight:600;white-space:pre-wrap}
+.study-back{transform:rotateY(180deg)}
+.grade-row{display:flex;gap:9px;margin-top:14px}
+.grade-row button{flex:1}
+.grade-row button:nth-child(1){background:#f8dfd8;color:#9b3925}
+.grade-row button:nth-child(2){background:#fff0c7;color:#7d5600}
+.grade-row button:nth-child(3){background:#dcf1e5;color:#146852}
+@media (prefers-reduced-motion:reduce){.study-card{transition:none}}

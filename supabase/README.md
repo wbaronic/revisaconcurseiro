@@ -6,6 +6,7 @@ Este diretório contém a migração PostgreSQL para Supabase e uma suíte de ve
 
 1. Crie um projeto Supabase.
 2. No **SQL Editor**, execute todo o arquivo `migrations/202610200001_initial.sql` uma vez.
+   Depois aplique `multi_exam_links.sql` e `simulations.sql`, nessa ordem.
 3. Em **Authentication → Providers → Email**, habilite o login por email e senha. Mantenha confirmação de email habilitada para contas reais.
 4. Configure a URL do projeto e a chave **publishable** (ou `anon` legada) no aplicativo, conforme o README principal. A sessão autenticada envia seu próprio JWT. **Nunca coloque a chave `service_role` no app.**
 5. Para confirmar emails, configure as URLs de redirecionamento em **Authentication → URL Configuration** e um destino de confirmação válido. Sem sessão retornada pelo cadastro, o aluno precisa confirmar o email antes de entrar.
@@ -23,6 +24,11 @@ A migração destina-se a um projeto novo: nomes de tabelas/funções existentes
 | `deck_reviews` | Agenda individual por conjunto | Lê a própria agenda; grava pela RPC |
 | `card_progress` | Pontuação individual por cartão | Lê o próprio progresso; grava pela RPC |
 | `grade_events` | Identificadores para evitar respostas duplicadas | Acesso somente pela RPC |
+| `simulations` | Modelos com a quantidade de cartões por conjunto | Cada aluno gerencia os próprios modelos |
+| `simulation_attempts` | Tentativas e notas em porcentagem | Cada aluno lê as próprias notas |
+| `simulation_answers` | Respostas de uma tentativa | Acesso somente pela RPC |
+
+O simulado sorteia os cartões a cada tentativa. A nota é a porcentagem de respostas **Acertei**; **Errei** e **Dúvida** também atualizam a pontuação individual por cartão. Iniciar um simulado não altera a agenda de revisão dos conjuntos.
 
 Todos os nomes ficam em UTF-8. O perfil não contém email: esse dado permanece no Supabase Auth. Pessoas não autenticadas não acessam essas tabelas.
 
